@@ -11,11 +11,13 @@ declare(strict_types=1);
  */
 namespace Hyperf\Watcher;
 
+use Hyperf\Contract\ConfigInterface;
 use Hyperf\Di\Annotation\AnnotationReader;
-use Hyperf\Di\Annotation\ScanConfig;
 use Hyperf\Di\ClassLoader;
 use Hyperf\Utils\Codec\Json;
 use Hyperf\Utils\Coroutine;
+use Hyperf\Utils\Exception\InvalidArgumentException;
+use Hyperf\Utils\Filesystem\FileNotFoundException;
 use Hyperf\Utils\Filesystem\Filesystem;
 use Hyperf\Watcher\Driver\DriverInterface;
 use PhpParser\PrettyPrinter\Standard;
@@ -74,7 +76,7 @@ class Watcher
     protected $reader;
 
     /**
-     * @var ScanConfig
+     * @var ConfigInterface
      */
     protected $config;
 
@@ -104,7 +106,7 @@ class Watcher
         $this->autoload = array_flip($json['autoload']['psr-4'] ?? []);
         $this->reflection = new BetterReflection();
         $this->reader = new AnnotationReader();
-        $this->config = ScanConfig::instance('/');
+        $this->config = $container->get(ConfigInterface::class);
         $this->printer = new Standard();
         $this->channel = new Channel(1);
         $this->channel->push(true);
@@ -132,6 +134,9 @@ class Watcher
                 $ret = System::exec($this->option->getBin() . ' vendor/hyperf/watcher/collector-reload.php ' . $file);
                 if ($ret['code'] === 0) {
                     $this->output->writeln('Class reload success.');
+                } else {
+                    $this->output->writeln('Class reload failed.');
+                    $this->output->writeln($ret['output'] ?? '');
                 }
                 $result[] = $file;
             }
@@ -146,7 +151,17 @@ class Watcher
 
     public function restart($isStart = true)
     {
-        $file = BASE_PATH . '/runtime/hyperf.pid';
+        if (! $this->option->isRestart()) {
+            return;
+        }
+        $file = $this->config->get('server.settings.pid_file');
+        if (empty($file)) {
+            throw new FileNotFoundException('The config of pid_file is not found.');
+        }
+        $daemonize = $this->config->get('server.settings.daemonize', false);
+        if ($daemonize) {
+            throw new InvalidArgumentException('Please set `server.settings.daemonize` to false');
+        }
         if (! $isStart && $this->filesystem->exists($file)) {
             $pid = $this->filesystem->get($file);
             try {

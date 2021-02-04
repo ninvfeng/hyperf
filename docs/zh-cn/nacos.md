@@ -63,7 +63,7 @@ return [
     // ...other
     'callbacks' => [
         // ...other
-        SwooleEvent::ON_SHUTDOWN => [Hyperf\Framework\Bootstrap\ShutdownCallback::class, 'onShutdown']
+        Event::ON_SHUTDOWN => [Hyperf\Framework\Bootstrap\ShutdownCallback::class, 'onShutdown']
     ]
 ];
 ```
@@ -71,19 +71,31 @@ return [
 ### 获取当前实例
 
 ```php
-$instance = new \Hyperf\Nacos\Instance();
+use Hyperf\Utils\ApplicationContext;
+use Hyperf\Nacos\Instance;
+
+$container = ApplicationContext::getContainer();
+$instance = $container->get(Instance::class);
 ```
 
 ### 获取当前服务
 
 ```php
-$service = new \Hyperf\Nacos\Service();
+use Hyperf\Utils\ApplicationContext;
+use Hyperf\Nacos\Service;
+
+$container = ApplicationContext::getContainer();
+$service = $container->get(Service::class);
 ```
 
 ### 获取一个服务的最优节点
 
 ```php
-$instance = make(NacosInstance::class);
+use Hyperf\Utils\ApplicationContext;
+use Hyperf\Nacos\Api\NacosInstance;
+
+$container = ApplicationContext::getContainer();
+$instance = $container->get(NacosInstance::class);
 
 $service = new ServiceModel([
     'service_name' => 'hyperf',

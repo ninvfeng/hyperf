@@ -12,8 +12,12 @@ declare(strict_types=1);
 namespace Hyperf\Nacos\Config;
 
 use Hyperf\Contract\ConfigInterface;
+use Hyperf\Contract\StdoutLoggerInterface;
 use Hyperf\Nacos\Client;
 use Hyperf\Process\AbstractProcess;
+use Hyperf\Process\ProcessCollector;
+use Hyperf\Process\ProcessManager;
+use Psr\Container\ContainerInterface;
 use Swoole\Coroutine\Server as CoServer;
 use Swoole\Server;
 
@@ -29,6 +33,17 @@ class FetchConfigProcess extends AbstractProcess
      */
     protected $server;
 
+    /**
+     * @var StdoutLoggerInterface
+     */
+    private $logger;
+
+    public function __construct(ContainerInterface $container)
+    {
+        parent::__construct($container);
+        $this->logger = $container->get(StdoutLoggerInterface::class);
+    }
+
     public function bind($server): void
     {
         $this->server = $server;
@@ -41,13 +56,26 @@ class FetchConfigProcess extends AbstractProcess
         $cache = [];
         $config = $this->container->get(ConfigInterface::class);
         $client = $this->container->get(Client::class);
-        while (true) {
+        while (ProcessManager::isRunning()) {
             $remoteConfig = $client->pull();
             if ($remoteConfig != $cache) {
                 $pipeMessage = new PipeMessage($remoteConfig);
                 for ($workerId = 0; $workerId <= $workerCount; ++$workerId) {
                     $this->server->sendMessage($pipeMessage, $workerId);
                 }
+
+                $processes = ProcessCollector::all();
+                if ($processes) {
+                    $string = serialize($pipeMessage);
+                    /** @var \Swoole\Process $process */
+                    foreach ($processes as $process) {
+                        $result = $process->exportSocket()->send($string, 10);
+                        if ($result === false) {
+                            $this->logger->error('Configuration synchronization failed. Please restart the server.');
+                        }
+                    }
+                }
+
                 $cache = $remoteConfig;
             }
             sleep((int) $config->get('nacos.config_reload_interval', 3));
@@ -57,6 +85,8 @@ class FetchConfigProcess extends AbstractProcess
     public function isEnable($server): bool
     {
         $config = $this->container->get(ConfigInterface::class);
-        return $server instanceof Server && (bool) $config->get('nacos.config_reload_interval', false);
+        return $server instanceof Server
+            && $config->get('nacos.enable', true)
+            && (bool) $config->get('nacos.config_reload_interval', false);
     }
 }

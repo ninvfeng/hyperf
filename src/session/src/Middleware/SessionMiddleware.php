@@ -95,7 +95,8 @@ class SessionMiddleware implements MiddlewareInterface
         if ($this->config->get('session.options.expire_on_close')) {
             $expirationDate = 0;
         } else {
-            $expirationDate = Carbon::now()->addMinutes(5 * 60)->getTimestamp();
+            $expireSeconds = $this->config->get('session.options.cookie_lifetime', 5 * 60 * 60);
+            $expirationDate = Carbon::now()->addSeconds($expireSeconds)->getTimestamp();
         }
         return $expirationDate;
     }
@@ -110,9 +111,11 @@ class SessionMiddleware implements MiddlewareInterface
     ): ResponseInterface {
         $uri = $request->getUri();
         $path = '/';
-        $domain = $uri->getHost();
         $secure = strtolower($uri->getScheme()) === 'https';
         $httpOnly = true;
+
+        $domain = $this->config->get('session.options.domain') ?? $uri->getHost();
+
         $cookie = new Cookie($session->getName(), $session->getId(), $this->getCookieExpirationDate(), $path, $domain, $secure, $httpOnly);
         if (! method_exists($response, 'withCookie')) {
             return $response->withHeader('Set-Cookie', (string) $cookie);

@@ -5,13 +5,23 @@ declare(strict_types=1);
  * This file is part of Hyperf.
  *
  * @link     https://www.hyperf.io
- * @document https://doc.hyperf.io
+ * @document https://hyperf.wiki
  * @contact  group@hyperf.io
  * @license  https://github.com/hyperf/hyperf/blob/master/LICENSE
  */
+use Hyperf\Nacos\Constants;
+
 return [
+    'enable' => true,
+    // nacos server url like https://nacos.hyperf.io, Priority is higher than host:port
+    // 'url' => '',
+    // The nacos host info
     'host' => '127.0.0.1',
     'port' => 8848,
+    // The nacos account info
+    'username' => null,
+    'password' => null,
+    'config_merge_mode' => Constants::CONFIG_MERGE_OVERWRITE,
     // The service info.
     'service' => [
         'service_name' => 'hyperf',
@@ -36,6 +46,7 @@ return [
     'listener_config' => [
         // dataId, group, tenant, type, content
         //[
+        //    'tenant' => 'tenant', // corresponding with service.namespaceId
         //    'data_id' => 'hyperf-service-config',
         //    'group' => 'DEFAULT_GROUP',
         //],

@@ -14,7 +14,7 @@ namespace Hyperf\Utils\Coordinator;
 class CoordinatorManager
 {
     /**
-     * A container that use to store coordinator.
+     * A container that is used for storing coordinator.
      *
      * @var array
      */
@@ -40,15 +40,6 @@ class CoordinatorManager
         }
 
         return static::$container[$identifier];
-    }
-
-    /**
-     * Alias of static::until.
-     * @deprecated v2.0
-     */
-    public static function get(string $identifier): Coordinator
-    {
-        return static::until($identifier);
     }
 
     /**

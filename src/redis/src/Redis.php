@@ -57,6 +57,7 @@ class Redis
                     // Should storage the connection to coroutine context, then use defer() to release the connection.
                     Context::set($this->getContextKey(), $connection);
                     defer(function () use ($connection) {
+                        Context::set($this->getContextKey(), null);
                         $connection->release();
                     });
                 } else {
@@ -83,7 +84,7 @@ class Redis
     }
 
     /**
-     * Get a connection from coroutine context, or from redis connectio pool.
+     * Get a connection from coroutine context, or from redis connection pool.
      * @param mixed $hasContextConnection
      */
     private function getConnection($hasContextConnection): RedisConnection

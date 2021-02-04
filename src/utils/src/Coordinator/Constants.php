@@ -22,14 +22,4 @@ class Constants
      * Swoole onWorkerExit event.
      */
     const WORKER_EXIT = 'workerExit';
-
-    /**
-     * Swoole onWorkerStart event.
-     */
-    const ON_WORKER_START = 'workerStart';
-
-    /**
-     * Swoole onWorkerExit event.
-     */
-    const ON_WORKER_EXIT = 'workerExit';
 }

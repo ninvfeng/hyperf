@@ -27,7 +27,7 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $instanceModel->toArray(),
         ]);
 
-        return $response->getBody()->getContents() === 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
     public function delete(InstanceModel $instanceModel): bool
@@ -36,7 +36,7 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $instanceModel->toArray(),
         ]);
 
-        return $response->getBody()->getContents() === 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
     public function update(InstanceModel $instanceModel): bool
@@ -47,7 +47,7 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $instanceModel->toArray(),
         ]);
 
-        return $response->getBody()->getContents() === 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
     public function list(ServiceModel $serviceModel, array $clusters = [], ?bool $healthyOnly = null): array
@@ -66,7 +66,7 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $params,
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        return Json::decode((string) $response->getBody());
     }
 
     public function getOptimal(ServiceModel $serviceModel, array $clusters = [])
@@ -77,7 +77,7 @@ class NacosInstance extends AbstractNacos
             return false;
         }
         $enabled = array_filter($instance, function ($item) {
-            return $item['enabled'];
+            return $item['enabled'] && $item['healthy'];
         });
 
         $tactics = strtolower($this->config->get('nacos.load_balancer', 'random'));
@@ -91,7 +91,7 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $instanceModel->toArray(),
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        return Json::decode((string) $response->getBody());
     }
 
     public function beat(ServiceModel $serviceModel, InstanceModel $instanceModel): array
@@ -99,7 +99,8 @@ class NacosInstance extends AbstractNacos
         $serviceName = $serviceModel->serviceName;
         $groupName = $serviceModel->groupName;
         $ephemeral = $instanceModel->ephemeral;
-        $params = array_filter(compact('serviceName', 'groupName', 'ephemeral'), function ($item) {
+        $namespaceId = $instanceModel->namespaceId;
+        $params = array_filter(compact('serviceName', 'groupName', 'ephemeral', 'namespaceId'), function ($item) {
             return $item !== null;
         });
         $params['beat'] = $instanceModel->toJson();
@@ -108,7 +109,7 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $params,
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        return Json::decode((string) $response->getBody());
     }
 
     public function updateHealth(InstanceModel $instanceModel): bool
@@ -121,23 +122,27 @@ class NacosInstance extends AbstractNacos
             RequestOptions::QUERY => $instanceModel->toArray(),
         ]);
 
-        return $response == 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
     protected function loadBalancer(array $nodes, $tactics = 'random')
     {
         $loadNodes = [];
         $nacosNodes = [];
-        /** @var InstanceModel $node */
+        /** @var array|InstanceModel $node */
         foreach ($nodes as $node) {
-            $loadNodes[] = new Node($node->ip, $node->port, $node->weight);
+            if (is_array($node)) {
+                $node = (object) $node;
+            }
+            $loadNodes[] = new Node($node->ip, $node->port, (int) $node->weight);
             $key = sprintf('%s:%d', $node->ip, $node->port);
             $nacosNodes[$key] = $node;
         }
 
-        $loadBalancerManager = ApplicationContext::getContainer()->get(LoadBalancerManager::class);
+        $container = ApplicationContext::getContainer();
+        $loadBalancerManager = $container->get(LoadBalancerManager::class);
         /** @var \Hyperf\LoadBalancer\LoadBalancerInterface $loadBalancer */
-        $loadBalancer = $loadBalancerManager->get($tactics);
+        $loadBalancer = $container->get($loadBalancerManager->get($tactics));
         $loadBalancer->setNodes($loadNodes);
 
         /** @var Node $availableNode */

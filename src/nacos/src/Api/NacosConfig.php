@@ -23,7 +23,13 @@ class NacosConfig extends AbstractNacos
             RequestOptions::QUERY => $configModel->toArray(),
         ]);
 
-        return $configModel->parse($response->getBody()->getContents());
+        $statusCode = $response->getStatusCode();
+        $contents = (string) $response->getBody();
+        if ($statusCode !== 200) {
+            return [];
+        }
+
+        return $configModel->parse($contents);
     }
 
     public function set(ConfigModel $configModel): array
@@ -32,7 +38,7 @@ class NacosConfig extends AbstractNacos
             RequestOptions::FORM_PARAMS => $configModel->toArray(),
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        return Json::decode((string) $response->getBody());
     }
 
     public function delete(ConfigModel $configModel): array
@@ -41,6 +47,6 @@ class NacosConfig extends AbstractNacos
             RequestOptions::QUERY => $configModel->toArray(),
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        return Json::decode((string) $response->getBody());
     }
 }

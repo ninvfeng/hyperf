@@ -12,8 +12,10 @@ declare(strict_types=1);
 namespace Hyperf\Nacos\Api;
 
 use GuzzleHttp\RequestOptions;
+use Hyperf\Nacos\Exception\RequestException;
 use Hyperf\Nacos\Model\ServiceModel;
 use Hyperf\Utils\Codec\Json;
+use Hyperf\Utils\Str;
 
 class NacosService extends AbstractNacos
 {
@@ -23,7 +25,7 @@ class NacosService extends AbstractNacos
             RequestOptions::QUERY => $serviceModel->toArray(),
         ]);
 
-        return $response->getBody()->getContents() === 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
     public function delete(ServiceModel $serviceModel): bool
@@ -32,7 +34,7 @@ class NacosService extends AbstractNacos
             RequestOptions::QUERY => $serviceModel->toArray(),
         ]);
 
-        return $response->getBody()->getContents() === 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
     public function update(ServiceModel $serviceModel): bool
@@ -41,16 +43,26 @@ class NacosService extends AbstractNacos
             RequestOptions::QUERY => $serviceModel->toArray(),
         ]);
 
-        return $response->getBody()->getContents() === 'ok';
+        return (string) $response->getBody() === 'ok';
     }
 
-    public function detail(ServiceModel $serviceModel): array
+    public function detail(ServiceModel $serviceModel): ?array
     {
         $response = $this->request('GET', '/nacos/v1/ns/service', [
             RequestOptions::QUERY => $serviceModel->toArray(),
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        $statusCode = $response->getStatusCode();
+        $contents = (string) $response->getBody();
+        if ($statusCode !== 200) {
+            if (Str::contains($contents, 'is not found')) {
+                return null;
+            }
+
+            throw new RequestException($contents, $statusCode);
+        }
+
+        return Json::decode($contents);
     }
 
     public function list(int $pageNo, int $pageSize = 10, ?string $groupName = null, ?string $namespaceId = null): array
@@ -61,6 +73,6 @@ class NacosService extends AbstractNacos
             RequestOptions::QUERY => $params,
         ]);
 
-        return Json::decode($response->getBody()->getContents());
+        return Json::decode((string) $response->getBody());
     }
 }
